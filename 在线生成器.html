@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>短视频脚本生成器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <style>
+    .script-table { border-collapse: collapse; }
+    .script-table th, .script-table td { border: 1px solid #e5e7eb; padding: 8px 12px; }
+    .script-table th { background: #f3f4f6; font-weight: 600; }
+    .toast { animation: fadeIn 0.3s, fadeOut 0.3s 2.7s; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+  <div class="max-w-5xl mx-auto p-6">
+    <h1 class="text-3xl font-bold text-center mb-2">短视频脚本生成器</h1>
+    <p class="text-center text-gray-500 mb-6">抖音/快手/视频号爆款视频脚本一键生成</p>
+
+    <div class="bg-white rounded-lg shadow p-6 mb-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">分类</label>
+          <select id="category" class="w-full border rounded px-3 py-2">
+            <option value="带货">带货类</option>
+            <option value="知识">知识类</option>
+            <option value="搞笑">搞笑类</option>
+            <option value="情感">情感类</option>
+            <option value="教程">教程类</option>
+            <option value="口播">口播类</option>
+            <option value="剧情">剧情类</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">目标平台</label>
+          <select id="targetPlatform" class="w-full border rounded px-3 py-2" onchange="updateDurationByPlatform()">
+            <option value="douyin">抖音</option>
+            <option value="kuaishou">快手</option>
+            <option value="bilibili">B站</option>
+            <option value="shipinhao">视频号</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">模板类型</label>
+          <select id="templateType" class="w-full border rounded px-3 py-2"></select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">时长</label>
+          <select id="duration" class="w-full border rounded px-3 py-2">
+            <option value="15">15秒</option>
+            <option value="30">30秒</option>
+            <option value="60">60秒</option>
+            <option value="90">90秒</option>
+            <option value="180">3分钟</option>
+            <option value="300">5分钟</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">痛点/开场问题</label>
+          <input type="text" id="painPoint" class="w-full border rounded px-3 py-2" placeholder="例如：你是否也遇到过...">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">核心卖点/知识点</label>
+          <input type="text" id="keyPoint" class="w-full border rounded px-3 py-2" placeholder="例如：快速解决XX问题">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">卖点1</label>
+          <input type="text" id="point1" class="w-full border rounded px-3 py-2" placeholder="第一卖点">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">卖点2</label>
+          <input type="text" id="point2" class="w-full border rounded px-3 py-2" placeholder="第二卖点">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">卖点3</label>
+          <input type="text" id="point3" class="w-full border rounded px-3 py-2" placeholder="第三卖点">
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2 mb-4">
+        <button onclick="generateScript()" class="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition">
+          <i class="fa fa-magic"></i> 生成脚本
+        </button>
+        <button onclick="randomize()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">
+          <i class="fa fa-random"></i> 随机填充
+        </button>
+        <button onclick="copyScript()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
+          <i class="fa fa-copy"></i> 复制表格
+        </button>
+        <button onclick="exportMarkdown()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 transition">
+          <i class="fa fa-download"></i> 导出Markdown
+        </button>
+        <button onclick="saveConfig()" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition">
+          <i class="fa fa-save"></i> 保存配置
+        </button>
+        <button onclick="loadConfig()" class="bg-teal-500 text-white px-4 py-2 rounded hover:bg-teal-600 transition">
+          <i class="fa fa-folder-open"></i> 加载配置
+        </button>
+      </div>
+    </div>
+
+    <div id="output" class="bg-white rounded-lg shadow p-6">
+      <h2 class="text-xl font-bold mb-4">生成的脚本</h2>
+      <div id="scriptContent" class="text-gray-500 text-center py-8">点击"生成脚本"按钮生成内容</div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-6 mt-6">
+      <h2 class="text-xl font-bold mb-4">模板说明</h2>
+      <div id="templateInfo" class="text-gray-600"></div>
+    </div>
+
+    <!-- Toast提示 -->
+    <div id="toast" class="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg hidden">
+      <i class="fa fa-check"></i> <span id="toastMsg">操作成功</span>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'script_generator_config';
+
+    const templates = {
+      带货: {
+        产品展示: { desc: '实物商品展示，突出功能卖点', music: '轻快BGM' },
+        测评种草: { desc: '开箱测评，优缺点分析', music: '中性BGM' },
+        痛点解决: { desc: '从痛点切入，引出解决方案', music: '悬念→轻快' },
+        直播切片: { desc: '直播精彩片段剪辑', music: '直播原声' },
+        对比测评: { desc: '同类产品横向对比', music: '专业BGM' },
+        价格优势: { desc: '突出性价比和优惠', music: '促销BGM' }
+      },
+      知识: {
+        反常识: { desc: '颠覆认知的知识点分享', music: '悬疑BGM' },
+        数据可视化: { desc: '用数据说话的科普内容', music: '科技感BGM' },
+        技巧分享: { desc: '实用小技巧快速教学', music: '轻快BGM' },
+        行业干货: { desc: '行业经验深度分享', music: '专业BGM' },
+        概念拆解: { desc: '复杂概念通俗讲解', music: '讲解BGM' },
+        趋势预测: { desc: '行业趋势分析预测', music: '科技BGM' }
+      },
+      搞笑: {
+        反转剧情: { desc: '意想不到的反转结局', music: '搞笑音效' },
+        角色扮演: { desc: '一人多角搞笑对话', music: '对话音效' },
+        段子合集: { desc: '连续抖包袱', music: '笑声音效' },
+        情景短剧: { desc: '日常场景搞笑演绎', music: '轻快BGM' },
+        吐槽系列: { desc: '针对现象的幽默吐槽', music: '搞笑BGM' },
+        模仿秀: { desc: '名人或角色模仿', music: '原曲BGM' }
+      },
+      情感: {
+        故事叙述: { desc: '感人故事讲述', music: '伤感BGM' },
+        对话独白: { desc: '内心独白或对话', music: '安静BGM' },
+        生活感悟: { desc: '人生感悟分享', music: '治愈BGM' },
+        励志鸡汤: { desc: '正能量激励', music: '励志BGM' },
+        情感共鸣: { desc: '引发观众情感共鸣', music: '抒情BGM' },
+        治愈系: { desc: '温暖治愈的内容', music: '轻柔BGM' }
+      },
+      教程: {
+        步骤教学: { desc: '清晰步骤分步讲解', music: '讲解BGM' },
+        错误纠正: { desc: '常见错误示范+正确做法', music: '警示→轻快' },
+        工具推荐: { desc: '好用工具推荐介绍', music: '科技感BGM' },
+        方法总结: { desc: '方法论系统总结', music: '专业BGM' },
+        入门指南: { desc: '零基础入门教程', music: '轻快BGM' },
+        进阶技巧: { desc: '高阶技巧分享', music: '专业BGM' }
+      },
+      口播: {
+        观点输出: { desc: '个人观点直接表达', music: '轻快BGM' },
+        热点点评: { desc: '时事热点快速点评', music: '新闻BGM' },
+        干货分享: { desc: '实用知识直接输出', music: '讲解BGM' },
+        情感共鸣: { desc: '情感话题深度探讨', music: '抒情BGM' },
+        职场经验: { desc: '职场干货经验分享', music: '专业BGM' },
+        生活建议: { desc: '生活小建议分享', music: '轻快BGM' }
+      },
+      剧情: {
+        悬疑推理: { desc: '悬疑剧情展开', music: '悬疑BGM' },
+        温馨家庭: { desc: '家庭温馨故事', music: '温馨BGM' },
+        职场故事: { desc: '职场相关剧情', music: '都市BGM' },
+        青春校园: { desc: '校园青春剧情', music: '青春BGM' },
+        都市情感: { desc: '都市情感故事', music: '都市BGM' },
+        古风剧情: { desc: '古装古风剧情', music: '古风BGM' }
+      }
+    };
+
+    let currentScriptData = null;
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    function updateTemplateTypes() {
+      const category = document.getElementById('category').value;
+      const types = templates[category];
+      const select = document.getElementById('templateType');
+      select.innerHTML = '';
+      for (const type in types) {
+        select.innerHTML += `<option value="${type}">${type}</option>`;
+      }
+      showTemplateInfo();
+    }
+
+    function showTemplateInfo() {
+      const category = document.getElementById('category').value;
+      const type = document.getElementById('templateType').value;
+      if (templates[category] && templates[category][type]) {
+        const info = templates[category][type];
+        document.getElementById('templateInfo').innerHTML = `
+          <p><strong>适用场景：</strong>${info.desc}</p>
+          <p><strong>推荐音乐：</strong>${info.music}</p>
+        `;
+      }
+    }
+
+    function generateScript() {
+      const category = document.getElementById('category').value;
+      const type = document.getElementById('templateType').value;
+      const duration = parseInt(document.getElementById('duration').value);
+      const product = document.getElementById('product').value || 'XX产品';
+      const painPoint = document.getElementById('painPoint').value || '你是否也遇到过这样的问题';
+      const keyPoint = document.getElementById('keyPoint').value || '快速解决问题';
+      const p1 = document.getElementById('point1').value || '卖点1';
+      const p2 = document.getElementById('point2').value || '卖点2';
+      const p3 = document.getElementById('point3').value || '卖点3';
+
+      currentScriptData = generateScriptTable(category, type, duration, product, painPoint, keyPoint, p1, p2, p3);
+      document.getElementById('scriptContent').innerHTML = currentScriptData.html;
+    }
+
+    function generateScriptTable(cat, type, dur, prod, pain, key, p1, p2, p3) {
+      const segments = [];
+
+      if (cat === '带货') {
+        if (type === '产品展示') {
+          segments.push({ time: '0-3s', scene: '产品特写+问题场景', copy: `"${pain}…"`, audio: '悬念音效' });
+          segments.push({ time: '3-8s', scene: '产品亮相', copy: `"直到我发现了这个${prod}…"`, audio: '哇音效' });
+          segments.push({ time: '8-20s', scene: '功能展示', copy: `"第一${p1}，第二${p2}，第三${p3}…"`, audio: '轻快BGM' });
+          segments.push({ time: '20-25s', scene: '效果对比', copy: `"效果立竿见影"`, audio: '对比音' });
+          segments.push({ time: '25-30s', scene: '价格引导', copy: `"现在下单只要XX元"`, audio: '促销音' });
+        } else if (type === '测评种草') {
+          segments.push({ time: '0-5s', scene: '开箱展示', copy: `"今天开箱这个${prod}…"`, audio: '开箱音效' });
+          segments.push({ time: '5-15s', scene: '外观细节', copy: `"包装很精致，手感不错"`, audio: 'BGM' });
+          segments.push({ time: '15-30s', scene: '使用演示', copy: `"实测一下效果"`, audio: 'BGM' });
+          segments.push({ time: '30-40s', scene: '效果展示', copy: `"看这个效果，${key}…"`, audio: '哇音效' });
+          segments.push({ time: '40-50s', scene: '优缺点', copy: `"优点是${p1}，缺点是${p2}…"`, audio: 'BGM' });
+          segments.push({ time: '50-60s', scene: '购买建议', copy: `"适合${p3}的人购买"`, audio: 'BGM' });
+        } else if (type === '痛点解决') {
+          segments.push({ time: '0-5s', scene: '痛点描述', copy: `"${pain}…"`, audio: '痛点音效' });
+          segments.push({ time: '5-10s', scene: '问题升级', copy: `"如果不解决会越来越严重"`, audio: '紧张音' });
+          segments.push({ time: '10-20s', scene: '产品登场', copy: `"这个${prod}能帮你解决"`, audio: '转场音' });
+          segments.push({ time: '20-30s', scene: '解决方案', copy: `"${key}，${p1}，${p2}…"`, audio: '轻快BGM' });
+          segments.push({ time: '30-40s', scene: '限时优惠', copy: `"现在下单福利…"`, audio: '促销音' });
+        } else if (type === '对比测评') {
+          segments.push({ time: '0-5s', scene: '引入对比', copy: `"${prod}到底选哪个？"`, audio: '疑问音' });
+          segments.push({ time: '5-20s', scene: 'A产品展示', copy: `"先看这款，${p1}，${p2}…"`, audio: 'BGM' });
+          segments.push({ time: '20-35s', scene: 'B产品展示', copy: `"再看这款，${p3}，${key}…"`, audio: 'BGM' });
+          segments.push({ time: '35-50s', scene: '对比总结', copy: `"综合来看，${pain}…"`, audio: '总结音' });
+        } else if (type === '价格优势') {
+          segments.push({ time: '0-3s', scene: '价格悬念', copy: `"你们猜这个${prod}多少钱？"`, audio: '悬念BGM' });
+          segments.push({ time: '3-10s', scene: '价值对比', copy: `"原价要XXX，现在只要XX"`, audio: '对比音' });
+          segments.push({ time: '10-25s', scene: '卖点展示', copy: `"${p1}，${p2}，${p3}…"`, audio: '轻快BGM' });
+          segments.push({ time: '25-35s', scene: '限时催单', copy: `"仅限今天，错过拍大腿"`, audio: '促销音' });
+        }
+      } else if (cat === '知识') {
+        if (type === '反常识') {
+          segments.push({ time: '0-5s', scene: '悬念开场', copy: `"你以为${pain}，其实不然"`, audio: '悬念BGM' });
+          segments.push({ time: '5-20s', scene: '颠覆认知', copy: `"真相是${key}…"`, audio: '揭秘音效' });
+          segments.push({ time: '20-35s', scene: '数据支撑', copy: `"数据显示${p1}…"`, audio: '科技音' });
+          segments.push({ time: '35-45s', scene: '总结收尾', copy: `"记住这三点：${p2}，${p3}…"`, audio: '收尾音' });
+        } else if (type === '技巧分享') {
+          segments.push({ time: '0-5s', scene: '问题开场', copy: `"${pain}？今天教你一招"`, audio: '开场音' });
+          segments.push({ time: '5-15s', scene: '技巧展示', copy: `"核心方法是${key}…"`, audio: '讲解BGM' });
+          segments.push({ time: '15-25s', scene: '步骤详解', copy: `"第一步${p1}，第二步${p2}…"`, audio: '步骤音' });
+          segments.push({ time: '25-30s', scene: '效果展示', copy: `"看${p3}的效果"`, audio: '对比音' });
+        } else if (type === '概念拆解') {
+          segments.push({ time: '0-5s', scene: '概念引入', copy: `"很多人不理解${prod}是什么"`, audio: '疑问音' });
+          segments.push({ time: '5-20s', scene: '通俗解释', copy: `"简单说就是${key}…"`, audio: '讲解BGM' });
+          segments.push({ time: '20-40s', scene: '案例说明', copy: `"比如${p1}，${p2}…"`, audio: '案例音' });
+          segments.push({ time: '40-50s', scene: '应用场景', copy: `"适合${p3}的场景使用"`, audio: '收尾音' });
+        } else if (type === '趋势预测') {
+          segments.push({ time: '0-5s', scene: '热点引入', copy: `"${prod}领域正在发生巨变"`, audio: '新闻音' });
+          segments.push({ time: '5-20s', scene: '现状分析', copy: `"目前${pain}…"`, audio: '分析BGM' });
+          segments.push({ time: '20-40s', scene: '趋势预测', copy: `"未来${key}，${p1}…"`, audio: '科技音' });
+          segments.push({ time: '40-60s', scene: '建议收尾', copy: `"建议${p2}，${p3}…"`, audio: '收尾音' });
+        }
+      } else if (cat === '搞笑') {
+        if (type === '反转剧情') {
+          segments.push({ time: '0-10s', scene: '铺垫场景', copy: `"${pain}正常反应是…"`, audio: '日常BGM' });
+          segments.push({ time: '10-20s', scene: '矛盾制造', copy: `"${key}结果却是…"`, audio: '转折音' });
+          segments.push({ time: '20-25s', scene: '反转揭晓', copy: `"没想到${p1}！"`, audio: '爆笑音效' });
+          segments.push({ time: '25-30s', scene: '结局收尾', copy: `"${p2}，${p3}…"`, audio: '笑声' });
+        } else if (type === '角色扮演') {
+          segments.push({ time: '0-10s', scene: '角色A登场', copy: `"${pain}？"`, audio: '对话音' });
+          segments.push({ time: '10-20s', scene: '角色B回应', copy: `"${key}！"`, audio: '对话音' });
+          segments.push({ time: '20-30s', scene: '角色A追问', copy: `"${p1}？"`, audio: '对话音' });
+          segments.push({ time: '30-35s', scene: '角色B神回复', copy: `"${p2}…"`, audio: '爆笑音效' });
+        } else if (type === '吐槽系列') {
+          segments.push({ time: '0-5s', scene: '现象引入', copy: `"你们发现没有，${pain}…"`, audio: '开场音' });
+          segments.push({ time: '5-20s', scene: '吐槽展开', copy: `"我就想问${key}…"`, audio: '吐槽BGM' });
+          segments.push({ time: '20-30s', scene: '金句收尾', copy: `"${p1}，我就不多说了"`, audio: '爆笑音' });
+        } else if (type === '模仿秀') {
+          segments.push({ time: '0-3s', scene: '模仿开场', copy: `"${prod}经典语录…"`, audio: '音效' });
+          segments.push({ time: '3-20s', scene: '模仿表演', copy: `"${pain}，${key}…"`, audio: '原曲BGM' });
+          segments.push({ time: '20-30s', scene: '搞笑收尾', copy: `"${p1}，懂的都懂"`, audio: '笑声' });
+        }
+      } else if (cat === '情感') {
+        if (type === '故事叙述') {
+          segments.push({ time: '0-10s', scene: '故事开场', copy: `"${pain}…那天…"`, audio: '伤感BGM' });
+          segments.push({ time: '10-25s', scene: '故事展开', copy: `"${key}，让我明白了…"`, audio: 'BGM渐强' });
+          segments.push({ time: '25-40s', scene: '情感高潮', copy: `"那一刻${p1}…"`, audio: '高潮音' });
+          segments.push({ time: '40-50s', scene: '感悟收尾', copy: `"所以${p2}，${p3}…"`, audio: '收尾BGM' });
+        } else if (type === '生活感悟') {
+          segments.push({ time: '0-5s', scene: '场景引入', copy: `"${pain}…"`, audio: '安静BGM' });
+          segments.push({ time: '5-20s', scene: '感悟阐述', copy: `"其实${key}…"`, audio: 'BGM' });
+          segments.push({ time: '20-35s', scene: '举例佐证', copy: `"就像${p1}，${p2}…"`, audio: 'BGM' });
+          segments.push({ time: '35-45s', scene: '金句收尾', copy: `"记住${p3}…"`, audio: '收尾音' });
+        } else if (type === '情感共鸣') {
+          segments.push({ time: '0-5s', scene: '共鸣开场', copy: `"有没有人和我一样${pain}…"`, audio: '抒情BGM' });
+          segments.push({ time: '5-20s', scene: '情感描述', copy: `"每次想到${key}，心里就…"`, audio: 'BGM渐强' });
+          segments.push({ time: '20-35s', scene: '情绪共鸣', copy: `"${p1}，${p2}…"`, audio: '高潮音' });
+          segments.push({ time: '35-45s', scene: '温暖收尾', copy: `"其实${p3}…"`, audio: '收尾音' });
+        } else if (type === '治愈系') {
+          segments.push({ time: '0-5s', scene: '温暖开场', copy: `"今天想和大家分享${prod}…"`, audio: '轻柔BGM' });
+          segments.push({ time: '5-25s', scene: '治愈内容', copy: `"${pain}的时候，试试${key}…"`, audio: 'BGM' });
+          segments.push({ time: '25-40s', scene: '温柔建议', copy: `"${p1}，${p2}…"`, audio: 'BGM' });
+          segments.push({ time: '40-50s', scene: '暖心收尾', copy: `"希望你${p3}…"`, audio: '收尾音' });
+        }
+      } else if (cat === '教程') {
+        if (type === '步骤教学') {
+          segments.push({ time: '0-5s', scene: '目标说明', copy: `"今天教你${key}"`, audio: '开场音' });
+          segments.push({ time: '5-15s', scene: '步骤1', copy: `"第一步：${p1}"`, audio: '讲解BGM' });
+          segments.push({ time: '15-25s', scene: '步骤2', copy: `"第二步：${p2}"`, audio: 'BGM' });
+          segments.push({ time: '25-35s', scene: '步骤3', copy: `"第三步：${p3}"`, audio: 'BGM' });
+          segments.push({ time: '35-45s', scene: '结果展示', copy: `"看最终效果"`, audio: '完成音' });
+        } else if (type === '错误纠正') {
+          segments.push({ time: '0-10s', scene: '错误示范', copy: `"很多人${pain}…"`, audio: '警示音' });
+          segments.push({ time: '10-20s', scene: '指出问题', copy: `"这样${key}…"`, audio: '转折音' });
+          segments.push({ time: '20-35s', scene: '正确做法', copy: `"正确方法是${p1}，${p2}…"`, audio: '讲解BGM' });
+          segments.push({ time: '35-45s', scene: '对比效果', copy: `"看${p3}的区别"`, audio: '对比音' });
+        } else if (type === '入门指南') {
+          segments.push({ time: '0-5s', scene: '指南介绍', copy: `"零基础也能学会${prod}!"`, audio: '轻快BGM' });
+          segments.push({ time: '5-20s', scene: '准备工作', copy: `"首先你需要${p1}…"`, audio: '讲解音' });
+          segments.push({ time: '20-40s', scene: '入门步骤', copy: `"然后${key}，${p2}…"`, audio: 'BGM' });
+          segments.push({ time: '40-50s', scene: '新手建议', copy: `"记住${p3}，少走弯路"`, audio: '收尾音' });
+        } else if (type === '进阶技巧') {
+          segments.push({ time: '0-5s', scene: '技巧预告', copy: `"${prod}进阶技巧揭秘"`, audio: '专业BGM' });
+          segments.push({ time: '5-25s', scene: '高阶方法', copy: `"高手都是这样${key}…"`, audio: '讲解音' });
+          segments.push({ time: '25-45s', scene: '技巧细节', copy: `"关键在于${p1}，${p2}…"`, audio: 'BGM' });
+          segments.push({ time: '45-60s', scene: '实战应用', copy: `"看${p3}的实际效果"`, audio: '完成音' });
+        }
+      } else if (cat === '口播') {
+        if (type === '观点输出') {
+          segments.push({ time: '0-5s', scene: '观点引入', copy: `"关于${prod}，我的看法是…"`, audio: '轻快BGM' });
+          segments.push({ time: '5-25s', scene: '观点阐述', copy: `"${key}，${pain}…"`, audio: 'BGM' });
+          segments.push({ time: '25-40s', scene: '论据支撑', copy: `"因为${p1}，而且${p2}…"`, audio: 'BGM' });
+          segments.push({ time: '40-50s', scene: '总结收尾', copy: `"所以${p3}…"`, audio: '收尾音' });
+        } else if (type === '热点点评') {
+          segments.push({ time: '0-3s', scene: '热点引入', copy: `"${prod}火了，你怎么看？"`, audio: '新闻音' });
+          segments.push({ time: '3-20s', scene: '事件回顾', copy: `"事情的经过是${pain}…"`, audio: 'BGM' });
+          segments.push({ time: '20-40s', scene: '个人观点', copy: `"我觉得${key}…"`, audio: 'BGM' });
+          segments.push({ time: '40-50s', scene: '互动收尾', copy: `"你们觉得${p1}？评论区见"`, audio: '收尾音' });
+        } else if (type === '干货分享') {
+          segments.push({ time: '0-3s', scene: '干货预告', copy: `"分享一个${prod}干货"`, audio: '开场音' });
+          segments.push({ time: '3-20s', scene: '干货内容', copy: `"核心是${key}…"`, audio: '讲解BGM' });
+          segments.push({ time: '20-40s', scene: '实操建议', copy: `"具体${p1}，${p2}…"`, audio: 'BGM' });
+          segments.push({ time: '40-50s', scene: '收藏引导', copy: `"建议收藏，${p3}…"`, audio: '收尾音' });
+        } else if (type === '职场经验') {
+          segments.push({ time: '0-5s', scene: '经验开场', copy: `"职场${prod}年经验总结"`, audio: '专业BGM' });
+          segments.push({ time: '5-25s', scene: '经验分享', copy: `"关于${pain}，我的建议是${key}…"`, audio: 'BGM' });
+          segments.push({ time: '25-45s', scene: '具体方法', copy: `"比如${p1}，${p2}…"`, audio: 'BGM' });
+          segments.push({ time: '45-60s', scene: '金句收尾', copy: `"记住，${p3}…"`, audio: '收尾音' });
+        }
+      } else if (cat === '剧情') {
+        if (type === '悬疑推理') {
+          segments.push({ time: '0-10s', scene: '悬念开场', copy: `"那天，${pain}…"`, audio: '悬疑BGM' });
+          segments.push({ time: '10-30s', scene: '线索铺垫', copy: `"我发现${key}…"`, audio: 'BGM渐强' });
+          segments.push({ time: '30-50s', scene: '推理过程', copy: `"如果${p1}，那么${p2}…"`, audio: '紧张音' });
+          segments.push({ time: '50-60s', scene: '真相揭晓', copy: `"原来${p3}！"`, audio: '揭秘音' });
+        } else if (type === '温馨家庭') {
+          segments.push({ time: '0-10s', scene: '日常开场', copy: `"周末在家${pain}…"`, audio: '温馨BGM' });
+          segments.push({ time: '10-30s', scene: '温馨互动', copy: `"家人说${key}…"`, audio: 'BGM' });
+          segments.push({ time: '30-50s', scene: '情感升华', copy: `"那一刻${p1}，我${p2}…"`, audio: '高潮音' });
+          segments.push({ time: '50-60s', scene: '温暖收尾', copy: `"原来${p3}…"`, audio: '收尾音' });
+        } else if (type === '职场故事') {
+          segments.push({ time: '0-10s', scene: '职场开场', copy: `"刚入职时${pain}…"`, audio: '都市BGM' });
+          segments.push({ time: '10-30s', scene: '冲突展开', copy: `"然后${key}…"`, audio: 'BGM' });
+          segments.push({ time: '30-50s', scene: '解决过程', copy: `"我决定${p1}，结果是${p2}…"`, audio: 'BGM' });
+          segments.push({ time: '50-60s', scene: '感悟收尾', copy: `"这就是职场，${p3}…"`, audio: '收尾音' });
+        } else if (type === '古风剧情') {
+          segments.push({ time: '0-10s', scene: '古风开场', copy: `"那日${pain}…"`, audio: '古风BGM' });
+          segments.push({ time: '10-30s', scene: '剧情展开', copy: `"公子说${key}…"`, audio: 'BGM' });
+          segments.push({ time: '30-50s', scene: '情感推进', copy: `"原来${p1}，${p2}…"`, audio: '高潮音' });
+          segments.push({ time: '50-60s', scene: '诗意收尾', copy: `"从此${p3}…"`, audio: '收尾音' });
+        }
+      }
+
+      let table = `<table class="script-table w-full"><thead><tr><th>时间</th><th>画面</th><th>文案</th><th>音效</th></tr></thead><tbody>`;
+      segments.forEach(s => {
+        table += `<tr><td>${s.time}</td><td>${s.scene}</td><td>${s.copy}</td><td>${s.audio}</td></tr>`;
+      });
+      table += '</tbody></table>';
+      table += `<p class="mt-4 text-sm text-gray-500">建议时长：${dur}s | 分类：${cat} | 类型：${type}</p>`;
+
+      return { html: table, segments: segments, category: cat, type: type, duration: dur, product: prod };
+    }
+
+    function randomize() {
+      const randomProducts = ['防晒霜', '充电宝', '保温杯', '蓝牙耳机', '智能手表', '护肤精华', '零食礼包', '健身器材'];
+      const randomPains = ['你是否也遇到过这个问题', '每天都要重复做这件事', '总觉得效率不够高', '想解决却不知道方法'];
+      const randomKeys = ['快速搞定', '一招解决', '轻松实现', '事半功倍'];
+
+      document.getElementById('product').value = randomProducts[Math.floor(Math.random() * randomProducts.length)];
+      document.getElementById('painPoint').value = randomPains[Math.floor(Math.random() * randomPains.length)];
+      document.getElementById('keyPoint').value = randomKeys[Math.floor(Math.random() * randomKeys.length)];
+      document.getElementById('point1').value = '省时省力';
+      document.getElementById('point2').value = '效果明显';
+      document.getElementById('point3').value = '性价比高';
+
+      generateScript();
+    }
+
+    function copyScript() {
+      const content = document.getElementById('scriptContent').innerText;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(content).then(() => showToast('已复制到剪贴板')).catch(() => fallbackCopyScript(content));
+      } else {
+        fallbackCopyScript(content);
+      }
+    }
+
+    function fallbackCopyScript(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      showToast('已复制到剪贴板');
+    }
+
+    function exportMarkdown() {
+      if (!currentScriptData) {
+        showToast('请先生成脚本');
+        return;
+      }
+
+      let md = `# 短视频脚本\n\n`;
+      md += `**分类：** ${currentScriptData.category} | **类型：** ${currentScriptData.type} | **时长：** ${currentScriptData.duration}s\n\n`;
+      md += `**主题：** ${currentScriptData.product}\n\n`;
+      md += `---\n\n`;
+      md += `| 时间 | 画面 | 文案 | 音效 |\n`;
+      md += `|------|------|------|------|\n`;
+      currentScriptData.segments.forEach(s => {
+        md += `| ${s.time} | ${s.scene} | ${s.copy} | ${s.audio} |\n`;
+      });
+      md += `\n---\n\n`;
+      md += `*生成时间：${new Date().toLocaleString()}*`;
+
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `脚本_${currentScriptData.product}_${new Date().toISOString().slice(0,10)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Markdown文件已导出');
+    }
+
+    function saveConfig() {
+      const config = {
+        category: document.getElementById('category').value,
+        templateType: document.getElementById('templateType').value,
+        duration: document.getElementById('duration').value,
+        product: document.getElementById('product').value,
+        painPoint: document.getElementById('painPoint').value,
+        keyPoint: document.getElementById('keyPoint').value,
+        point1: document.getElementById('point1').value,
+        point2: document.getElementById('point2').value,
+        point3: document.getElementById('point3').value
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      showToast('配置已保存');
+    }
+
+    function loadConfig() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        showToast('没有保存的配置');
+        return;
+      }
+
+      const config = JSON.parse(saved);
+      document.getElementById('category').value = config.category || '带货';
+      updateTemplateTypes();
+      document.getElementById('templateType').value = config.templateType || '';
+      document.getElementById('duration').value = config.duration || '30';
+      document.getElementById('product').value = config.product || '';
+      document.getElementById('painPoint').value = config.painPoint || '';
+      document.getElementById('keyPoint').value = config.keyPoint || '';
+      document.getElementById('point1').value = config.point1 || '';
+      document.getElementById('point2').value = config.point2 || '';
+      document.getElementById('point3').value = config.point3 || '';
+      showToast('配置已加载');
+    }
+
+    // 页面加载时尝试恢复配置
+    window.addEventListener('load', () => {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          const config = JSON.parse(saved);
+          if (config.category) {
+            document.getElementById('category').value = config.category;
+            updateTemplateTypes();
+            setTimeout(() => {
+              if (config.templateType) document.getElementById('templateType').value = config.templateType;
+              if (config.duration) document.getElementById('duration').value = config.duration;
+              if (config.product) document.getElementById('product').value = config.product;
+              if (config.painPoint) document.getElementById('painPoint').value = config.painPoint;
+              if (config.keyPoint) document.getElementById('keyPoint').value = config.keyPoint;
+              if (config.point1) document.getElementById('point1').value = config.point1;
+              if (config.point2) document.getElementById('point2').value = config.point2;
+              if (config.point3) document.getElementById('point3').value = config.point3;
+            }, 50);
+          }
+        } catch (e) {}
+      }
+    });
+
+    document.getElementById('category').addEventListener('change', updateTemplateTypes);
+    document.getElementById('templateType').addEventListener('change', showTemplateInfo);
+    updateTemplateTypes();
+
+    // ============================================================
+    // 多平台时长适配
+    // ============================================================
+    var PLATFORM_DURATIONS = {
+      douyin: { recommended: [15, 30, 60], max: 300, label: '抖音', tips: '抖音推荐15-60秒，黄金时长30秒' },
+      kuaishou: { recommended: [15, 30, 60, 90], max: 600, label: '快手', tips: '快手推荐30-90秒，中长视频表现好' },
+      bilibili: { recommended: [180, 300, 600], max: 900, label: 'B站', tips: 'B站推荐3-10分钟，深度内容优先' },
+      shipinhao: { recommended: [15, 30, 60], max: 180, label: '视频号', tips: '视频号推荐15-60秒，最长3分钟' }
+    };
+
+    function updateDurationByPlatform() {
+      var platform = document.getElementById('targetPlatform').value;
+      var info = PLATFORM_DURATIONS[platform];
+      var durationSelect = document.getElementById('duration');
+      durationSelect.innerHTML = info.recommended.map(function(d) {
+        return '<option value="' + d + '">' + (d < 60 ? d + '秒' : (d/60) + '分钟') + '</option>';
+      }).join('');
+
+      // Add other durations beyond recommended
+      if (info.max > info.recommended[info.recommended.length - 1]) {
+        var extra = info.max;
+        durationSelect.innerHTML += '<option value="' + extra + '">' + (extra < 60 ? extra + '秒' : (extra/60) + '分钟') + '（最长）</option>';
+      }
+
+      // Show platform tips
+      showTemplateInfo();
+      var platformInfo = document.getElementById('platformInfo');
+      if (!platformInfo) {
+        document.getElementById('templateInfo').innerHTML += '<div id="platformInfo" class="mt-2 text-xs text-blue-600"><i class="fa fa-info-circle mr-1"></i>' + info.tips + '</div>';
+      } else {
+        platformInfo.innerHTML = '<i class="fa fa-info-circle mr-1"></i>' + info.tips;
+      }
+    }
+
+    function adaptSegmentsByPlatform(segments, platform, duration) {
+      var info = PLATFORM_DURATIONS[platform];
+      var targetDuration = parseInt(duration);
+      var currentDuration = segments.reduce(function(sum, s) {
+        var timeRange = s.time.split('-');
+        var start = parseInt(timeRange[0]);
+        var end = parseInt(timeRange[1] || timeRange[0].replace('s','').replace('m','').replace(/\D/g,''));
+        return sum + (end - start);
+      }, 0);
+
+      // Scale segments to fit target duration
+      if (currentDuration > 0 && targetDuration > 0) {
+        var scale = targetDuration / currentDuration;
+        var accumulated = 0;
+        segments = segments.map(function(s) {
+          var timeParts = s.time.match(/(\d+)-(\d+)s/);
+          if (!timeParts) timeParts = s.time.match(/(\d+)-(\d+)m/);
+          if (timeParts) {
+            var segLen = parseInt(timeParts[2]) - parseInt(timeParts[1]);
+            var newLen = Math.round(segLen * scale);
+            var newStart = accumulated;
+            accumulated += newLen;
+            s.time = newStart + '-' + accumulated + 's';
+          }
+          return s;
+        });
+      }
+
+      return segments;
+    }
+  </script>
+</body>
+</html>
